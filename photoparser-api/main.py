@@ -13,8 +13,6 @@ from search import main as search
 import redis
 from rq import Queue
 
-from time import sleep
-
 app = FastAPI()
 
 r = redis.Redis(host='redis', port=6379)
