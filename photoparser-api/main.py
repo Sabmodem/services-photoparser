@@ -27,14 +27,11 @@ async def get_db():
 @app.post("/search_query/", response_model=schemas.SearchQuery)
 async def create_user(
     search_query: schemas.SearchQueryCreate,
-    pages: int,
-    time: str,
-    lang: str,
     db = Depends(get_db)
 ):
     try:
         db_search_query = await crud.create_search_query(db=db, search_query=search_query)
-        q.enqueue(search, db_search_query.query_string, pages, time, lang, db_search_query.id)
+        q.enqueue(search, db_search_query.query_string, db_search_query.pages, db_search_query.time_range, db_search_query.language, db_search_query.id)
         return db_search_query
     except sqlalchemy.exc.IntegrityError as e:
         raise HTTPException(status_code=400)

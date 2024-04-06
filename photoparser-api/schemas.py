@@ -7,13 +7,6 @@ SearchQueryStatusProcessing = 1
 SearchQueryStatusDone = 2
 SearchQueryStatusError = 3
 
-class TaskBase(BaseModel):
-    id: str
-    status: str
-
-class Task(TaskBase):
-    pass
-
 class SearchQueryStatus(BaseModel):
     id: int
     description: str
@@ -36,6 +29,10 @@ class SearchResult(SearchResultBase):
 class SearchQueryBase(BaseModel):
     id: typing.Optional[uuid.UUID] = None
     query_string: str
+    pages: int
+    time_range: str
+    language: str
+    safe_search: int
 
 class SearchQueryCreate(SearchQueryBase):
     pass
