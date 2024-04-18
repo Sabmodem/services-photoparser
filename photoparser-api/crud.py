@@ -6,6 +6,8 @@ import models, schemas
 
 import sqlalchemy
 
+import database
+
 import uuid
 
 async def set_search_query_status(db: AsyncSession, search_query_id: uuid.UUID, search_query_status_id: int):
@@ -22,7 +24,8 @@ async def get_search_query(db: AsyncSession, search_query_id: uuid.UUID):
 
 async def get_search_queries(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.SearchQuery).order_by(models.SearchQuery.id.desc()).offset(skip).limit(limit))
-    return result.scalars().all()
+    total = await count(db, models.SearchQuery)
+    return { 'result': result.scalars().all(), 'total': total }
 
 async def create_search_query(db: AsyncSession, search_query: schemas.SearchQueryCreate):
     db_search_query = models.SearchQuery(**search_query.dict())
@@ -37,7 +40,12 @@ async def get_search_result(db: AsyncSession, search_result_id: uuid.UUID):
 
 async def get_search_results(db: AsyncSession, skip: int = 0, limit: int = 100):
     result = await db.execute(select(models.SearchResult).order_by(models.SearchResult.id.desc()).offset(skip).limit(limit))
-    return result.scalars().all()
+    total = await count(db, models.SearchResult)
+    return { 'result': result.scalars().all(), 'total': total }
+
+async def count(db: AsyncSession, table: database.Base):
+    result = await db.execute(select(sqlalchemy.func.count()).select_from(table))
+    return result.scalars().one()
 
 async def create_search_result(db: AsyncSession, search_result: schemas.SearchResultCreate, search_query_id: uuid.UUID):
     db_item = models.SearchResult(**search_result.dict(), search_query_id=search_query_id)

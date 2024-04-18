@@ -34,7 +34,7 @@ async def create_user(
     except sqlalchemy.exc.IntegrityError as e:
         raise HTTPException(status_code=400)
 
-@app.get("/search_query/", response_model=list[schemas.SearchQuery])
+@app.get("/search_query/")
 async def read_users(skip: int = 0, limit: int = 100, db = Depends(get_db)):
     search_queries = await crud.get_search_queries(db, skip=skip, limit=limit)
     return search_queries
@@ -59,7 +59,7 @@ async def create_item_for_user(
 async def set_search_query_status(search_query_id: uuid.UUID, search_query_status_id: int, db = Depends(get_db)):
     return await crud.set_search_query_status(db,search_query_id=search_query_id, search_query_status_id=search_query_status_id)
 
-@app.get("/search_results/", response_model=list[schemas.SearchResult])
+@app.get("/search_results/")
 async def read_items(skip: int = 0, limit: int = 100, db = Depends(get_db)):
     search_results = await crud.get_search_results(db, skip=skip, limit=limit)
     return search_results

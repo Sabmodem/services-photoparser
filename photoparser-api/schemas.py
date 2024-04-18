@@ -25,6 +25,9 @@ class SearchResult(SearchResultBase):
     class Config:
         from_attributes = True
 
+class searchResultsPaginated(BaseModel):
+    results: list[SearchResult] = []
+    total: int = 0
 
 class SearchQueryBase(BaseModel):
     id: typing.Optional[uuid.UUID] = None
@@ -43,3 +46,7 @@ class SearchQuery(SearchQueryBase):
 
     class Config:
         from_attributes = True
+
+class SearchQueriesPaginated(BaseModel):
+    results: list[SearchQuery] = []
+    total: int = 0
