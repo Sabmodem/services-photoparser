@@ -60,3 +60,9 @@ The UI will run at `http://localhost:3000/ui/photoparser/`.
 - Models in `models.py`
 - Schemas in `schemas.py`
 - Background search tasks in `search.py`
+
+
+### TODO:
+- docker-compose.yaml
+- ci pipeline for both containers
+- alembic
