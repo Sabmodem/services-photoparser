@@ -17,9 +17,6 @@
       # Database tools for migrations
       db-tools = with pkgs; [
         alembic
-        sqlalchemy
-        psycopg2
-        pg8000
       ];
 
       # 1. Настройка VS Code
@@ -63,44 +60,45 @@
     in
     {
       # 3. Обертка в devShell для работы команды `nix develop`
-      devShells.${system}.default = pkgs.mkShell {
-        packages = [ fhsEnv ];
+      devShells.${system} = {
+        # Default shell - FHS environment
+        default = pkgs.mkShell {
+          packages = [ fhsEnv ];
 
-        shellHook = ''
-          if [ ! -d .venv ]; then
-            echo "ℹ️  Окружение .venv не найдено. Создайте его внутри FHS:"
-            echo "    uv venv --python 3.12 && uv sync"
-          fi
-          echo "✅ Входим в FHS-окружение..."
-          echo "📦 Доступные команды:"
-          echo "   nix develop -c alembic <command>    # Alembic migrations"
-          echo "   nix develop -c alembic --help       # Alembic help"
-          echo "   nix develop -c python run.sh        # Run API server"
-          echo ""
-          exec ${fhsEnv}/bin/ml-fhs-env
-        '';
-      };
+          shellHook = ''
+            if [ ! -d .venv ]; then
+              echo "ℹ️  Окружение .venv не найдено. Создайте его внутри FHS:"
+              echo "    uv venv --python 3.12 && uv sync"
+            fi
+            echo "✅ Входим в FHS-окружение..."
+            echo "📦 Доступные команды:"
+            echo "   nix develop -c alembic <command>    # Alembic migrations"
+            echo "   nix develop -c alembic --help       # Alembic help"
+            echo "   nix develop -c python run.sh        # Run API server"
+            echo ""
+            exec ${fhsEnv}/bin/ml-fhs-env
+          '';
+        };
 
-      # 4. Shell для миграций базы данных
-      devShells.${system}.migrations = pkgs.mkShell {
-        packages = db-tools ++ [
-          fhsEnv
-        ];
+        # Shell для миграций базы данных
+        migrations = pkgs.mkShell {
+          packages = db-tools ++ [ fhsEnv ];
 
-        shellHook = ''
-          echo "📦 Database migrations environment"
-          echo ""
-          echo "Usage:"
-          echo "  alembic upgrade head      # Apply migrations"
-          echo "  alembic downgrade 1       # Revert last migration"
-          echo "  alembic current           # Check current version"
-          echo "  alembic history           # View migration history"
-          echo "  alembic revision -m "msg" # Generate migration"
-          echo ""
-          echo "Set DATABASE_URL environment variable for autogenerate:"
-          echo "  export DATABASE_URL=postgresql+pg8000://user:pass@host:port/db"
-          echo "  alembic revision --autogenerate -m "msg""
-        '';
+          shellHook = ''
+            echo "📦 Database migrations environment"
+            echo ""
+            echo "Usage:"
+            echo "  alembic upgrade head      # Apply migrations"
+            echo "  alembic downgrade 1       # Revert last migration"
+            echo "  alembic current           # Check current version"
+            echo "  alembic history           # View migration history"
+            echo "  alembic revision -m \"msg\" # Generate migration"
+            echo ""
+            echo "Set DATABASE_URL environment variable for autogenerate:"
+            echo "  export DATABASE_URL=postgresql+pg8000://user:pass@host:port/db"
+            echo "  alembic revision --autogenerate -m \"msg\""
+          '';
+        };
       };
     };
 }

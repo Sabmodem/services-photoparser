@@ -23,4 +23,6 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
+.nix-profile*
+
 /postgresql/data
