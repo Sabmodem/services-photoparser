@@ -16,17 +16,24 @@ async def exec(
         language,
         format
         ):
-    data = {
+    params = {
         'q': query,
         'pageno': pageno,
         'time_range': time_range,
         'language': language,
         'format': format,
-        'category_images': '1'
+        'categories': 'images'
     }
-    response = await client.post(f'{SEARXNG_URL}/search', data=data)
-    json = response.json()
-    return json.get('results', None)
+    headers = {
+        'X-Forwarded-For': '127.0.0.1',
+        'X-Real-IP': '127.0.0.1'
+    }
+    response = await client.get(f'{SEARXNG_URL}/search', params=params, headers=headers)
+    response.raise_for_status()
+    json_data = response.json()
+    results = json_data.get('results', [])
+    print(f"DEBUG: SearXNG returned {len(results)} results for page {pageno}")
+    return results if results else []
 
 async def main(query, pages, time, lang, id):
   async with database.SessionLocal() as db:
