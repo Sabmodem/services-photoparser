@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: photoparser_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: photoparserx
+      POSTGRES_PASSWORD: XtCBlt3QcJ?L\9
+      POSTGRES_DB: photoparser
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U photoparserx -d photoparser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./photoparser-api
+      dockerfile: Dockerfile
+    container_name: photoparser_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./photoparser-api:/app
+      - ./photoparser-api/alembic.ini:/app/alembic.ini
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: >
+      /bin/sh -c "
+      sleep 5 &&
+      uvicorn --host 0.0.0.0 --port 8000 main:app --root-path /api/photoparser --reload
+      "
+
+  redis:
+    image: redis:7-alpine
+    container_name: photoparser_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

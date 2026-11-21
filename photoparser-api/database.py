@@ -1,7 +1,12 @@
+import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncAttrs, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-SQLALCHEMY_DATABASE_URL = "postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@81.31.246.95:5432/mixed"
+# Use DATABASE_URL from environment variable or default to local development database
+SQLALCHEMY_DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser"
+)
 
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL
