@@ -41,6 +41,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser
       REDIS_URL: redis://redis:6379/0
+      SEARXNG_URL: http://searxng:8080
     expose:
       - "8000"
     volumes:
@@ -53,6 +54,8 @@ services:
         condition: service_started
       migrate:
         condition: service_completed_successfully
+      searxng:
+        condition: service_started
     command:
       - uvicorn
       - main:app
@@ -93,6 +96,35 @@ services:
     volumes:
       - redis_data:/data
 
+  worker:
+    build:
+      context: ./photoparser-api
+      dockerfile: Dockerfile
+    container_name: photoparser_worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser
+      REDIS_URL: redis://redis:6379/0
+      SEARXNG_URL: http://searxng:8080
+    command: rqworker
+    depends_on:
+      redis:
+        condition: service_started
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: photoparser_searxng
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - searxng_data:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8081/
+    depends_on:
+      - redis
+
 volumes:
   postgres_data:
   redis_data:
+  searxng_data:

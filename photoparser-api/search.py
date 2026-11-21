@@ -1,9 +1,12 @@
+import os
 import httpx
 import asyncio
 from itertools import chain
 import crud
 import database
 import schemas
+
+SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://searxng:8080")
 
 async def exec(
         client,
@@ -21,7 +24,7 @@ async def exec(
         'format': format,
         'category_images': '1'
     }
-    response = await client.post(f'http://searxng:8080/search', data=data)
+    response = await client.post(f'{SEARXNG_URL}/search', data=data)
     json = response.json()
     return json.get('results', None)
 
