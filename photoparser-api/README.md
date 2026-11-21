@@ -17,52 +17,35 @@ python run.sh
 
 ### Database Migrations
 
-The API uses **Alembic** for database migrations.
-
-#### Using the migration script (recommended):
+The API uses **Alembic** for database migrations. Dependencies are installed via `uv sync`.
 
 ```bash
-# Navigate to API directory
 cd photoparser-api
 
 # Upgrade to latest migration
-./scripts/migrate.sh upgrade
+alembic upgrade head
 
 # Check current migration status
-./scripts/migrate.sh current
+alembic current
 
 # View migration history
-./scripts/migrate.sh history
+alembic history --verbose
 
 # Generate new migration (requires DATABASE_URL set)
-# This will automatically detect changes in models.py
 export DATABASE_URL="postgresql+pg8000://photoparserx:yourpassword@localhost:5432/photoparser"
-./scripts/migrate.sh generate "add user preferences table"
+alembic revision --autogenerate -m "add user preferences table"
 ```
-
-#### Using Alembic directly:
-
-```bash
-# Using nix-shell
-nix-shell -p python3Packages.alembic python3Packages.sqlalchemy python3Packages.psycopg2 \
-  --run "cd photoparser-api && alembic upgrade head"
-
-# Or set DATABASE_URL and use autogenerate
-export DATABASE_URL="postgresql+pg8000://photoparserx:yourpassword@localhost:5432/photoparser"
-alembic revision --autogenerate -m "your migration message"
-```
-
-#### Common migration commands:
 
 | Command | Description |
 |---------|-------------|
-| `./scripts/migrate.sh upgrade` | Upgrade to latest migration |
-| `./scripts/migrate.sh upgrade <revision>` | Upgrade to specific revision |
-| `./scripts/migrate.sh downgrade` | Revert last migration |
-| `./scripts/migrate.sh downgrade <n>` | Revert last n migrations |
-| `./scripts/migrate.sh current` | Show current revision |
-| `./scripts/migrate.sh history` | Show migration history |
-| `./scripts/migrate.sh generate "message"` | Generate new migration |
+| `alembic upgrade head` | Upgrade to latest migration |
+| `alembic upgrade <revision>` | Upgrade to specific revision |
+| `alembic downgrade` | Revert last migration |
+| `alembic downgrade <n>` | Revert last n migrations |
+| `alembic current` | Show current revision |
+| `alembic history --verbose` | Show migration history |
+| `alembic revision --autogenerate -m "message"` | Generate new migration |
+| `alembic downgrade -1 && alembic upgrade head` | Check migrations work (round-trip) |
 
 ## Database Setup
 
@@ -82,9 +65,8 @@ REDIS_URL=redis://localhost:6379/0
 # Create database (if not using Docker Compose)
 createdb -U photoparserx photoparser
 
-# Or with Docker Compose
-docker-compose up -d db
-./scripts/migrate.sh upgrade
+# Or with Docker Compose (migrations run automatically)
+docker-compose up -d
 ```
 
 ## Architecture
@@ -113,8 +95,6 @@ photoparser-api/
 │   ├── env.py          # Alembic environment
 │   ├── script.py.mako  # Migration template
 │   └── versions/       # Migration files
-├── scripts/
-│   └── migrate.sh      # Migration helper script
 ├── Dockerfile          # Production container
 ├── run.sh              # Development entrypoint
 └── pyproject.toml      # Python dependencies
@@ -128,13 +108,13 @@ photoparser-api/
 2. Generate migration:
    ```bash
    export DATABASE_URL="postgresql+pg8000://..."
-   ./scripts/migrate.sh generate "add user model"
+   alembic revision --autogenerate -m "add user model"
    ```
 3. Review the generated migration in `migrations/versions/`
 4. Update migration if needed
 5. Apply migration:
    ```bash
-   ./scripts/migrate.sh upgrade
+   alembic upgrade head
    ```
 
 ### Adding a new API endpoint
