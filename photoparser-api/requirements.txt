@@ -1,8 +1,10 @@
 fastapi
-SQLAlchemy
-uvicorn
+sqlalchemy[asyncio]
+uvicorn[standard]
 redis
 rq
 asyncpg
 httpx
 alembic
+greenlet
+pg8000

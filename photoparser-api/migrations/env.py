@@ -59,16 +59,14 @@ def run_migrations_online() -> None:
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
-    Uses sync engine for simplicity.
+    Uses sync engine with pg8000 driver for simplicity.
 
     """
     # Use DATABASE_URL from environment variable or default to SQLALCHEMY_DATABASE_URL
     url = os.environ.get("DATABASE_URL") or SQLALCHEMY_DATABASE_URL
 
-    # For asyncpg, we need to use sync driver (pg8000) or use sync SQLAlchemy
-    # We'll create a sync engine from the async URL by replacing the driver
-    sync_url = url.replace("+asyncpg", "")
-    sync_url = sync_url.replace("postgresql+asyncpg", "postgresql+pg8000")
+    # Convert asyncpg URL to pg8000 for sync migrations
+    sync_url = url.replace("postgresql+asyncpg", "postgresql+pg8000")
 
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),

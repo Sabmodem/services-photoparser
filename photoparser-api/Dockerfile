@@ -7,7 +7,9 @@ WORKDIR /build
 
 # Copy only requirements first for better layer caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install runtime dependencies + migration dependencies (pg8000 for sync DB access)
+RUN pip install --no-cache-dir --user -r requirements.txt && \
+    pip install --no-cache-dir --user pg8000
 
 # ============================================
 # Stage 2: Production stage

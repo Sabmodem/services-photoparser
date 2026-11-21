@@ -1,35 +1,18 @@
 #!/bin/bash
 set -e
 
-# Ensure DATABASE_URL is set
-if [ -z "$DATABASE_URL" ]; then
-    # Try to load from .env if exists
-    if [ -f ".env" ]; then
-        export $(grep -v '^#' .env | xargs)
-    else
-        echo "⚠️  DATABASE_URL not set. Using default from database.py"
-    fi
-fi
+# Ensure DATABASE_URL is set (use pg8000 driver for migrations)
+export DATABASE_URL="${DATABASE_URL:-postgresql+pg8000://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser}"
 
 # Run migrations before starting the server
 if [ -d "migrations" ] && [ -f "migrations/env.py" ]; then
     echo "🔧 Running database migrations..."
     
-    # Check if running in Docker (use python directly)
-    if [ -n "$DOCKER_ENV" ]; then
-        # Inside Docker, run migrations via nix-shell
-        nix-shell -p python3Packages.alembic \
-          python3Packages.sqlalchemy \
-          python3Packages.pg8000 \
-          python3Packages.psycopg2 \
-          --run "cd $(dirname $0) && alembic upgrade head"
+    # Use alembic from PATH (installed in Docker builder stage)
+    if command -v alembic &> /dev/null; then
+        cd /app && alembic upgrade head
     else
-        # Local development with nix-shell
-        nix-shell -p python3Packages.alembic \
-          python3Packages.sqlalchemy \
-          python3Packages.pg8000 \
-          python3Packages.psycopg2 \
-          --run "cd $(dirname $0) && alembic upgrade head"
+        echo "⚠️  alembic not found, skipping migrations"
     fi
     echo "✅ Database migrations completed"
 fi
