@@ -47,6 +47,10 @@ LICENSE
 *.bak
 *.tmp
 
+# Local testing
+.env.test
+.env.dev
+
 # Docker
 Dockerfile
 .dockerignore
