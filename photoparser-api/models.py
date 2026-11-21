@@ -32,31 +32,3 @@ class SearchResult(Base):
   img_src = Column(String, nullable=False)
   thumb_src = Column(String)
   search_query = relationship("SearchQuery", back_populates="search_results", lazy="selectin")
-
-if __name__ == '__main__':
-  print(SearchResult)
-  # import asyncio
-  # from database import engine, SessionLocal
-  # async def create_models_async() -> None:
-  #     async with engine.begin() as conn:
-  #         await conn.run_sync(Base.metadata.create_all)
-  #     await engine.dispose()
-
-  # async def create_catalog():
-  #   async with SessionLocal() as session:
-  #     statuses = await session.execute(sqlalchemy.select(SearchQueryStatus))
-  #     statues_scalars = statuses.scalars().all()
-  #     if(len(statues_scalars) > 0):
-  #        return
-  #     session.add_all([
-  #       SearchQueryStatus(id=0, description='sheduled'),
-  #       SearchQueryStatus(id=1, description='processing'),
-  #       SearchQueryStatus(id=2, description='done'),
-  #       SearchQueryStatus(id=3, description='error'),
-  #     ])
-  #     await session.commit()
-  # async def prepare_db():
-  #    await create_models_async()
-  #    await create_catalog()
-
-  # asyncio.run(prepare_db())

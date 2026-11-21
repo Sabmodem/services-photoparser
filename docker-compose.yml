@@ -41,8 +41,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser
       REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./photoparser-api:/app
       - ./photoparser-api/alembic.ini:/app/alembic.ini
@@ -62,6 +62,27 @@ services:
       - "8000"
       - --root-path
       - /api/photoparser
+
+  ui:
+    build:
+      context: ./photoparser-ui
+      dockerfile: Dockerfile
+    container_name: photoparser_ui
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  gateway:
+    image: nginx:stable-alpine
+    container_name: photoparser_gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/gateway.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - ui
+      - api
 
   redis:
     image: redis:7-alpine

@@ -1,13 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from sqlalchemy import select
-
 import models, schemas
-
 import sqlalchemy
-
 import database
-
 import uuid
 
 async def set_search_query_status(db: AsyncSession, search_query_id: uuid.UUID, search_query_status_id: int):

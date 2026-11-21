@@ -50,6 +50,12 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    proxy: {
+      '/api/photoparser': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   base: '/ui/photoparser/'
 })
