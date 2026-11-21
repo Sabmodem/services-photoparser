@@ -1,6 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-# from sqlalchemy.orm import Session
 
 import sqlalchemy
 
@@ -13,6 +12,7 @@ from search import main as search
 
 import redis
 from rq import Queue
+from admin import init_admin
 
 app = FastAPI()
 
@@ -23,6 +23,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+init_admin(app)
 
 @app.get("/health")
 async def health_check():

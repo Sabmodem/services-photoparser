@@ -1,7 +1,0 @@
-[
-    { "name": "Anytime", "value": "" },
-    { "name": "Last day", "value": "day" },
-    { "name": "Last week", "value": "week" },
-    { "name": "Last month", "value": "month" },
-    { "name": "Last year", "value": "year" }
-]
