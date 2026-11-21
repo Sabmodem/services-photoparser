@@ -19,6 +19,19 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    build:
+      context: ./photoparser-api
+      dockerfile: Dockerfile
+    container_name: photoparser_migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://photoparserx:XtCBlt3QcJ%3FL%5C9@db:5432/photoparser
+    command: >
+      /bin/sh -c "alembic upgrade head"
+
   api:
     build:
       context: ./photoparser-api
@@ -38,11 +51,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-    command: >
-      /bin/sh -c "
-      sleep 5 &&
-      uvicorn --host 0.0.0.0 --port 8000 main:app --root-path /api/photoparser --reload
-      "
+      migrate:
+        condition: service_completed_successfully
+    command:
+      - uvicorn
+      - main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --root-path
+      - /api/photoparser
 
   redis:
     image: redis:7-alpine
