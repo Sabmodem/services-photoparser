@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, ... }:
     let
       system = "x86_64-linux";
 
@@ -13,10 +13,19 @@
         inherit system;
         config = { allowUnfree = true; };
       };
+      lib = pkgs.lib;
 
       # Database tools for migrations
       db-tools = with pkgs; [
         alembic
+      ];
+
+      # FHS libraries needed at runtime
+      fhs-lib = with pkgs; [
+        pkgs.stdenv.cc.cc.lib
+        pkgs.zlib
+        pkgs.glib
+        pkgs.sqlite
       ];
 
       # 1. Настройка VS Code
@@ -31,7 +40,7 @@
         ];
       };
 
-      # Точка входа FHS: активируем .venv (если есть) и отдаём интерактивный bash
+      # FHS wrapper (for running compiled packages, kept for compatibility)
       fhsEntrypoint = pkgs.writeShellScript "ml-fhs-entry" ''
         if [ -f "$PWD/.venv/bin/activate" ]; then
           source "$PWD/.venv/bin/activate"
@@ -39,55 +48,63 @@
         exec bash "$@"
       '';
 
-      # 2. Создание изолированного FHS-окружения
       fhsEnv = pkgs.buildFHSEnv {
         name = "ml-fhs-env";
         targetPkgs = pkgs: [
-          my-vscode
           pkgs.uv
-
-          # Системные библиотеки, нужные для ML-пакетов (PyTorch, Cuda-драйверы и т.д.)
-          pkgs.stdenv.cc.cc.lib
-          pkgs.zlib
-          pkgs.glib
-          pkgs.sqlite
           pkgs.opencode
-          # pkgs.pyright   # раскомментируйте, если нужен pyright как CLI
-          # pkgs.openssl   # добавьте, если uv/pip будут ругаться на TLS
-        ];
+        ] ++ fhs-lib;
         runScript = "${fhsEntrypoint}";
       };
+
+      # LD_LIBRARY_PATH from FHS libraries (for running compiled Python packages)
+      fhsLibPaths = lib.makeLibraryPath fhs-lib;
     in
     {
-      # 3. Обертка в devShell для работы команды `nix develop`
+      # devShell для работы `nix develop` и `nix develop -c <cmd>`
       devShells.${system} = {
-        # Default shell - FHS environment
+        # Default shell
         default = pkgs.mkShell {
-          packages = [ fhsEnv ];
+          packages = [ pkgs.uv fhsEnv ];
 
           shellHook = ''
+            # FHS libraries for compiled packages (PyTorch, etc.)
+            export LD_LIBRARY_PATH=${fhsLibPaths}:${pkgs.glibc}/lib:$LD_LIBRARY_PATH
+
             if [ ! -d .venv ]; then
-              echo "ℹ️  Окружение .venv не найдено. Создайте его внутри FHS:"
-              echo "    uv venv --python 3.12 && uv sync"
+              echo "ℹ️  Окружение .venv не найдено. Создайте его:"
+              echo "    uv venv && uv sync"
             fi
-            echo "✅ Входим в FHS-окружение..."
+
+            if [ -f "$PWD/.venv/bin/activate" ]; then
+              source "$PWD/.venv/bin/activate"
+            fi
+
+            echo "✅ FHS-окружение готово"
             echo "📦 Доступные команды:"
-            echo "   nix develop -c alembic <command>    # Alembic migrations"
-            echo "   nix develop -c alembic --help       # Alembic help"
-            echo "   nix develop -c python run.sh        # Run API server"
+            echo "   uv sync          # Установить зависимости"
+            echo "   uv lock          # Сгенерировать lockfile"
+            echo "   uv run uvicorn ...  # Запустить API"
+            echo "   alembic <cmd>    # Migrations"
             echo ""
-            exec ${fhsEnv}/bin/ml-fhs-env
           '';
         };
 
         # Shell для миграций базы данных
         migrations = pkgs.mkShell {
-          packages = db-tools ++ [ fhsEnv ];
+          packages = db-tools ++ [ pkgs.uv fhsEnv ];
 
           shellHook = ''
+            export LD_LIBRARY_PATH=${fhsLibPaths}:${pkgs.glibc}/lib:$LD_LIBRARY_PATH
+
+            if [ -f "$PWD/.venv/bin/activate" ]; then
+              source "$PWD/.venv/bin/activate"
+            fi
+
             echo "📦 Database migrations environment"
             echo ""
             echo "Usage:"
+            echo "  uv sync          # Install dependencies"
             echo "  alembic upgrade head      # Apply migrations"
             echo "  alembic downgrade 1       # Revert last migration"
             echo "  alembic current           # Check current version"

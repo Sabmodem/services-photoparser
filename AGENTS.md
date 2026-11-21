@@ -20,8 +20,8 @@ npm run lint      # eslint --fix
 ### API
 ```bash
 cd photoparser-api
-pip install -r requirements.txt
-python run.sh     # uvicorn at port 8000, root-path /api/photoparser
+uv sync          # install dependencies (uses pyproject.toml + uv.lock)
+uvicorn main:app --host 0.0.0.0 --port 8000 --root-path /api/photoparser
 ```
 
 ## Architecture Notes

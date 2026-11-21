@@ -1,19 +1,3 @@
-# ============================================
-# Stage 1: Build stage
-# ============================================
-FROM python:3.11-slim as builder
-
-WORKDIR /build
-
-# Copy only requirements first for better layer caching
-COPY requirements.txt .
-# Install runtime dependencies + migration dependencies (pg8000 for sync DB access)
-RUN pip install --no-cache-dir --user -r requirements.txt && \
-    pip install --no-cache-dir --user pg8000
-
-# ============================================
-# Stage 2: Production stage
-# ============================================
 FROM python:3.11-slim
 
 LABEL maintainer="PhotoParser Team"
@@ -24,14 +8,17 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 WORKDIR /app
 
-# Copy installed packages from builder stage
-COPY --from=builder /root/.local /home/appuser/.local
+# Install uv for fast pip-compatible installs
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /usr/local/bin/uv
+
+# Install dependencies using uv pip (fast, lockfile-compatible)
+COPY pyproject.toml uv.lock ./
+RUN uv export --no-dev --no-hashes --output-file requirements.txt && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir alembic
 
 # Copy application code
 COPY --chown=appuser:appgroup . /app
-
-# Set PATH to include user-local packages
-ENV PATH=/home/appuser/.local/bin:$PATH
 
 # Switch to non-root user
 USER appuser
