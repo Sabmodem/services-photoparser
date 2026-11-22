@@ -1,3 +1,5 @@
+from typing import Any
+from uuid import UUID
 from starlette.requests import Request
 from sqladmin import Admin, ModelView
 from wtforms import SelectField
@@ -115,6 +117,19 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
         "language": {"choices": LANGUAGE_OPTIONS},
         "safe_search": {"choices": SAFE_SEARCH_OPTIONS, "coerce": int},
     }
+
+    async def delete_model(self, request: Request, pk: Any) -> None:
+        """Delete associated SearchResult rows first to avoid NOT NULL constraint."""
+        from sqlalchemy import delete
+
+        pk_uuid = UUID(str(pk))
+        async with engine.begin() as conn:
+            await conn.execute(
+                delete(models.SearchResult).where(
+                    models.SearchResult.search_query_id == pk_uuid
+                )
+            )
+        await super().delete_model(request, pk)
 
     async def insert_model(self, request: Request, data: dict) -> models.SearchQuery:
         """Override to enqueue search job AFTER the model is persisted (has an ID)."""
