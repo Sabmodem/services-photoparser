@@ -39,16 +39,25 @@ class SearchResultAdmin(ModelView, model=models.SearchResult):
     can_create = False
     can_edit = False
     can_delete = False
-    column_list = [models.SearchResult.id, models.SearchResult.thumb_src, models.SearchResult.search_query_id]
+    column_list = [
+        models.SearchResult.id,
+        models.SearchResult.thumb_src,
+        models.SearchResult.img_src,
+        models.SearchResult.search_query_id,
+    ]
     column_labels = {
         models.SearchResult.id: "ID",
         models.SearchResult.thumb_src: "Thumbnail",
+        models.SearchResult.img_src: "Image URL",
         models.SearchResult.search_query_id: "Query",
         models.SearchResult.search_query: "Search Query",
     }
     column_formatters = {
         models.SearchResult.thumb_src: lambda m, a: (
             Markup(f'<img src="{m.thumb_src or m.img_src}" style="max-width:200px;max-height:150px;object-fit:contain;"/>')
+        ),
+        models.SearchResult.img_src: lambda m, a: (
+            m.img_src or m.thumb_src
         ),
         models.SearchResult.search_query_id: lambda m, a: (
             Markup(f'<a href="/admin/search-query/details/{m.search_query_id}">{m.search_query_id}</a>')
