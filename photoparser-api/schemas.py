@@ -50,3 +50,31 @@ class SearchQuery(SearchQueryBase):
 class SearchQueriesPaginated(BaseModel):
     results: list[SearchQuery] = []
     total: int = 0
+
+
+class DownloadTaskBase(BaseModel):
+    id: typing.Optional[uuid.UUID] = None
+    search_query_id: uuid.UUID
+    status_id: int = 0
+    archive_path: typing.Optional[str] = None
+    filename: typing.Optional[str] = None
+    total: int = 0
+    downloaded: int = 0
+    error_msg: typing.Optional[str] = None
+
+
+class DownloadTaskCreate(DownloadTaskBase):
+    pass
+
+
+class DownloadTask(DownloadTaskBase):
+    created_at: typing.Optional[str] = None
+    status: typing.Optional[SearchQueryStatus] = None
+
+    class Config:
+        from_attributes = True
+
+
+class DownloadTasksPaginated(BaseModel):
+    results: list[DownloadTask] = []
+    total: int = 0

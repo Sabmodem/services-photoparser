@@ -16,6 +16,8 @@ dependencies = [
     "greenlet>=3.0.0",
     "sqladmin>=0.20.0",
     "alembic>=1.14.0",
+    "aiobotocore>=2.13.0",
+    "botocore>=1.35.0",
 ]
 
 [project.optional-dependencies]

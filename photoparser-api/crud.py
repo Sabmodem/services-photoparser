@@ -48,3 +48,61 @@ async def create_search_result(db: AsyncSession, search_result: schemas.SearchRe
     await db.commit()
     await db.refresh(db_item)
     return db_item
+
+
+async def create_download_task(db: AsyncSession, search_query_id: uuid.UUID, total: int) -> models.DownloadTask:
+    db_item = models.DownloadTask(search_query_id=search_query_id, total=total)
+    db.add(db_item)
+    await db.commit()
+    await db.refresh(db_item)
+    return db_item
+
+
+async def get_download_task(db: AsyncSession, download_task_id: uuid.UUID) -> models.DownloadTask:
+    result = await db.execute(select(models.DownloadTask).where(models.DownloadTask.id == download_task_id))
+    return result.scalars().one()
+
+
+async def get_download_tasks(db: AsyncSession, skip: int = 0, limit: int = 100):
+    result = await db.execute(select(models.DownloadTask).order_by(models.DownloadTask.created_at.desc()).offset(skip).limit(limit))
+    total = await count(db, models.DownloadTask)
+    return {'result': result.scalars().all(), 'total': total}
+
+
+async def update_download_task_status(db: AsyncSession, download_task_id: uuid.UUID, status_id: int) -> models.DownloadTask:
+    task = await get_download_task(db, download_task_id)
+    task.status_id = status_id
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    return task
+
+
+async def update_download_task_progress(db: AsyncSession, download_task_id: uuid.UUID, downloaded: int) -> models.DownloadTask:
+    task = await get_download_task(db, download_task_id)
+    task.downloaded = downloaded
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    return task
+
+
+async def complete_download_task(db: AsyncSession, download_task_id: uuid.UUID, archive_path: str, filename: str) -> models.DownloadTask:
+    task = await get_download_task(db, download_task_id)
+    task.status_id = schemas.SearchQueryStatusDone
+    task.archive_path = archive_path
+    task.filename = filename
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    return task
+
+
+async def fail_download_task(db: AsyncSession, download_task_id: uuid.UUID, error_msg: str) -> models.DownloadTask:
+    task = await get_download_task(db, download_task_id)
+    task.status_id = schemas.SearchQueryStatusError
+    task.error_msg = error_msg
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    return task

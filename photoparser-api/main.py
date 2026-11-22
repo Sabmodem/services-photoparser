@@ -3,16 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import sqlalchemy
 
-import crud, models, schemas
+import crud, models, schemas, storage
 from database import SessionLocal
 
 import uuid
 
 from search import main as search
+from download import main as download_job
 
 import redis
 from rq import Queue
 from admin import init_admin
+from starlette.responses import JSONResponse, RedirectResponse
 
 app = FastAPI()
 
@@ -85,3 +87,61 @@ async def read_user(search_result_id: uuid.UUID, db = Depends(get_db)):
         return await crud.get_search_result(db, search_result_id=search_result_id)
     except sqlalchemy.exc.NoResultFound as e:
         raise HTTPException(status_code=404)
+
+
+# ── Download tasks ─────────────────────────────────────────────────────────
+
+@app.post("/download_task/", response_model=schemas.DownloadTask)
+async def create_download_task(
+    search_query_id: uuid.UUID,
+    db = Depends(get_db)
+):
+    """Create a download task and enqueue the RQ job."""
+    try:
+        task = await crud.create_download_task(db, search_query_id, 0)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid search query")
+
+    try:
+        q.enqueue(
+            download_job,
+            str(search_query_id),
+            job_timeout=600,
+        )
+        print(f"Enqueued download job: query_id={search_query_id}")
+    except Exception as e:
+        print(f"Failed to enqueue download job: {e}")
+
+    return task
+
+
+@app.get("/download_task/", response_model=schemas.DownloadTasksPaginated)
+async def read_download_tasks(skip: int = 0, limit: int = 100, db = Depends(get_db)):
+    tasks = await crud.get_download_tasks(db, skip=skip, limit=limit)
+    return schemas.DownloadTasksPaginated(results=tasks["result"], total=tasks["total"])
+
+
+@app.get("/download_task/{download_task_id}", response_model=schemas.DownloadTask)
+async def read_download_task(download_task_id: uuid.UUID, db = Depends(get_db)):
+    try:
+        return await crud.get_download_task(db, download_task_id)
+    except sqlalchemy.exc.NoResultFound:
+        raise HTTPException(status_code=404)
+
+
+@app.get("/download_task/{download_task_id}/url")
+async def get_download_url(download_task_id: uuid.UUID, db = Depends(get_db)):
+    """Get a download URL for the archive."""
+    try:
+        task = await crud.get_download_task(db, download_task_id)
+    except sqlalchemy.exc.NoResultFound:
+        raise HTTPException(status_code=404)
+
+    if task.status_id != schemas.SearchQueryStatusDone:
+        raise HTTPException(status_code=400, detail=f"Download not ready (status: {task.status_id})")
+
+    if not task.archive_path:
+        raise HTTPException(status_code=500, detail="No archive path stored")
+
+    url = await storage.get_storage().get_file_url(task.archive_path, expires_in=86400)
+    return JSONResponse({"url": url, "filename": task.filename})
