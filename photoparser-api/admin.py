@@ -48,9 +48,7 @@ class SearchResultAdmin(ModelView, model=models.SearchResult):
     }
     column_formatters = {
         models.SearchResult.thumb_src: lambda m, a: (
-            Markup(f'<img src="{m.thumb_src}" style="max-width:200px;max-height:150px;object-fit:contain;"/>')
-            if m.thumb_src
-            else ""
+            Markup(f'<img src="{m.thumb_src or m.img_src}" style="max-width:200px;max-height:150px;object-fit:contain;"/>')
         ),
         models.SearchResult.search_query_id: lambda m, a: (
             Markup(f'<a href="/admin/search-query/details/{m.search_query_id}">{m.search_query_id}</a>')
