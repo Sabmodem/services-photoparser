@@ -1,5 +1,6 @@
 from typing import Any
 from uuid import UUID
+from markupsafe import Markup
 from starlette.requests import Request
 from sqladmin import Admin, ModelView
 from wtforms import SelectField
@@ -23,10 +24,12 @@ class SearchQueryStatusAdmin(ModelView, model=models.SearchQueryStatus):
     can_edit = False
     can_delete = False
     column_list = [models.SearchQueryStatus.id, models.SearchQueryStatus.description]
+    column_details_exclude_list = [models.SearchQueryStatus.search_query]
     column_labels = {
         models.SearchQueryStatus.id: "ID",
         models.SearchQueryStatus.description: "Description",
     }
+    column_formatters_detail = {}
     name = "Statuses"
     name_plural = "Statuses"
 
@@ -41,7 +44,31 @@ class SearchResultAdmin(ModelView, model=models.SearchResult):
         models.SearchResult.id: "ID",
         models.SearchResult.thumb_src: "Thumbnail",
         models.SearchResult.search_query_id: "Query",
+        models.SearchResult.search_query: "Search Query",
     }
+    column_formatters = {
+        models.SearchResult.thumb_src: lambda m, a: (
+            Markup(f'<img src="{m.thumb_src}" style="max-width:200px;max-height:150px;object-fit:contain;"/>')
+            if m.thumb_src
+            else ""
+        ),
+        models.SearchResult.search_query_id: lambda m, a: (
+            Markup(f'<a href="/admin/search-query/details/{m.search_query_id}">{m.search_query_id}</a>')
+        ),
+    }
+    column_formatters_detail = {
+        models.SearchResult.search_query: lambda m, a: (
+            Markup(f'<a href="/admin/search-query/details/{m.search_query_id}">{m.search_query.query_string}</a>')
+            if m.search_query and m.search_query.query_string
+            else Markup(f'<a href="/admin/search-query/details/{m.search_query_id}">{m.search_query_id}</a>')
+        ),
+    }
+    column_details_list = [
+        models.SearchResult.id,
+        models.SearchResult.search_query,
+    ]
+    page_size = 20
+    page_size_options = [20, 50, 100]
     name = "Result"
     name_plural = "Results"
 
@@ -83,6 +110,20 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
         models.SearchQuery.pages,
         models.SearchQuery.status,
     ]
+    column_formatters = {
+        models.SearchQuery.status: lambda m, a: (
+            Markup(f'<a href="/admin/search-query-status/details/{m.status.id}">{m.status.description}</a>')
+            if m.status and m.status.id
+            else Markup(f'<a href="/admin/search-query-status/details/{m.status_id}">{m.status_id}</a>')
+        ),
+    }
+    column_formatters_detail = {
+        models.SearchQuery.status: lambda m, a: (
+            Markup(f'<a href="/admin/search-query-status/details/{m.status.id}">{m.status.description}</a>')
+            if m.status and m.status.description
+            else Markup(f'<a href="/admin/search-query-status/details/{m.status_id}">{m.status_id}</a>')
+        ),
+    }
     column_details_list = [
         models.SearchQuery.query_string,
         models.SearchQuery.pages,
@@ -100,6 +141,7 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
         models.SearchQuery.safe_search: "Safe Search",
         models.SearchQuery.status: "Status",
     }
+    name_plural = "Search Queries"
     form_columns = [
         models.SearchQuery.query_string,
         models.SearchQuery.pages,
