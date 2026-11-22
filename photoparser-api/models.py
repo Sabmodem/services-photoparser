@@ -11,7 +11,7 @@ class SearchQuery(Base):
   status_id = Column(Integer, ForeignKey('search_query_status.id'), nullable=False, default=0)
 
   query_string = Column(String, nullable=False)
-  pages = Column(Integer, nullable=False)
+  pages = Column(Integer, nullable=False, server_default='1')
   time_range = Column(String, nullable=False)
   language = Column(String, nullable=False)
   safe_search = Column(Integer, nullable=False)

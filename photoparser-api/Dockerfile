@@ -14,8 +14,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /usr/local/bin/uv
 # Install dependencies using uv pip (fast, lockfile-compatible)
 COPY pyproject.toml uv.lock ./
 RUN uv export --no-dev --no-hashes --output-file requirements.txt && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir alembic
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY --chown=appuser:appgroup . /app

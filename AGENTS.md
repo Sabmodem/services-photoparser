@@ -1,5 +1,18 @@
 # Agent Instructions
 
+## Environment Setup (Important)
+
+This project uses a `flake.nix` at the root. **Always activate it before running commands** — it sets up `LD_LIBRARY_PATH` for compiled packages (PyTorch, etc.) and activates the `.venv`:
+
+```bash
+cd /home/sabmodem/projects/services-photoparser
+nix develop          # default shell (includes FHS libs + .venv)
+nix develop .#migrations  # shell with alembic for DB migrations
+nix develop -c <command>   # run a single command in the shell
+```
+
+Without `nix develop`, `alembic`, `uv`, and other tools won't be found, and compiled packages may fail with library errors.
+
 ## Project Structure
 
 Monorepo with two packages:

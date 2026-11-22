@@ -13,14 +13,10 @@ r = redis.Redis(host='redis', port=6379)
 q = Queue(connection=r)
 
 
-class SearchQueryStatusAdmin(ModelView, model=models.SearchQueryStatus):
-    column_list = [models.SearchQueryStatus.id, models.SearchQueryStatus.description]
-    column_labels = {
-        models.SearchQueryStatus.id: "ID",
-        models.SearchQueryStatus.description: "Description",
-    }
-    name = "Statuses"
-    name_plural = "Statuses"
+# SearchQueryStatus is no longer exposed in admin.
+# It is a fixed lookup table — statuses are managed via DB seed/alembic.
+# class SearchQueryStatusAdmin(ModelView, model=models.SearchQueryStatus):
+#     ...
 
 
 class SearchResultAdmin(ModelView, model=models.SearchResult):
@@ -60,6 +56,12 @@ SAFE_SEARCH_OPTIONS = [
 
 
 class SearchQueryAdmin(ModelView, model=models.SearchQuery):
+    # Read-only: users can view queries but not edit or delete existing ones.
+    # Create is allowed so new searches can be submitted via admin.
+    can_edit = False
+    can_delete = False
+    can_create = True
+
     column_list = [
         models.SearchQuery.id,
         models.SearchQuery.query_string,
@@ -98,33 +100,36 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
     form_args = {
         "time_range": {"choices": TIME_RANGE_OPTIONS},
         "language": {"choices": LANGUAGE_OPTIONS},
-        "safe_search": {"choices": SAFE_SEARCH_OPTIONS},
+        "safe_search": {"choices": SAFE_SEARCH_OPTIONS, "coerce": int},
     }
 
-    async def on_model_change(self, data: dict, model: models.SearchQuery, is_created: bool, request: Request) -> None:
-        """Enqueue search job when a new query is created."""
-        if is_created:
-            try:
-                q.enqueue(
-                    search_job,
-                    str(data.get("query_string", "")),
-                    int(data.get("pages", 1)),
-                    str(data.get("time_range", "")),
-                    str(data.get("language", "")),
-                    str(model.id),
-                    job_timeout=300,
-                )
-                print(f"Enqueued search job: {data.get('query_string')} (id={model.id})")
-            except Exception as e:
-                print(f"Failed to enqueue search job: {e}")
+    async def insert_model(self, request: Request, data: dict) -> models.SearchQuery:
+        """Override to enqueue search job AFTER the model is persisted (has an ID)."""
+        # Normalize pages: 0 or negative defaults to 1
+        data["pages"] = max(int(data.get("pages", 1)), 1)
 
-        # Always call parent to preserve default behavior
-        await super().on_model_change(data, model, is_created, request)
+        model = await super().insert_model(request, data)
+
+        # At this point, the model has been committed and model.id is set.
+        try:
+            q.enqueue(
+                search_job,
+                str(data.get("query_string", "")),
+                int(data["pages"]),
+                str(data.get("time_range", "")),
+                str(data.get("language", "")),
+                str(model.id),
+                job_timeout=300,
+            )
+            print(f"Enqueued search job: {data.get('query_string')} pages={data['pages']} id={model.id}")
+        except Exception as e:
+            print(f"Failed to enqueue search job: {e}")
+        return model
 
 
 def init_admin(app):
     admin = Admin(app, engine=engine, base_url="/admin")
-    admin.add_view(SearchQueryStatusAdmin)
+    # Statuses table is hidden — it's a fixed lookup (Pending/In Progress/Completed/Failed)
     admin.add_view(SearchResultAdmin)
     admin.add_view(SearchQueryAdmin)
     return admin
