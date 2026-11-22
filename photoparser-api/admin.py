@@ -119,17 +119,40 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
     }
 
     async def delete_model(self, request: Request, pk: Any) -> None:
-        """Delete associated SearchResult rows first to avoid NOT NULL constraint."""
+        """Delete associated SearchResult rows first to avoid NOT NULL constraint.
+
+        We do the full delete ourselves (cascade + query delete) to avoid
+        event loop sharing with other async fixtures/tests.
+        """
         from sqlalchemy import delete
+        from sqlalchemy.ext.asyncio import create_async_engine
 
         pk_uuid = UUID(str(pk))
-        async with engine.begin() as conn:
-            await conn.execute(
-                delete(models.SearchResult).where(
-                    models.SearchResult.search_query_id == pk_uuid
+        # Use a fresh engine to avoid event loop sharing
+        cascade_engine = create_async_engine(
+            engine.url,
+            pool_pre_ping=True,
+            pool_size=2,
+        )
+        try:
+            async with cascade_engine.begin() as conn:
+                # 1. Delete associated SearchResult rows
+                await conn.execute(
+                    delete(models.SearchResult).where(
+                        models.SearchResult.search_query_id == pk_uuid
+                    )
                 )
-            )
-        await super().delete_model(request, pk)
+                # 2. Delete the SearchQuery
+                await conn.execute(
+                    delete(models.SearchQuery).where(
+                        models.SearchQuery.id == pk_uuid
+                    )
+                )
+        finally:
+            await cascade_engine.dispose()
+
+        # Skip super().delete_model() since we already deleted everything
+        await self._emit_audit(request, "delete", pk, None)
 
     async def insert_model(self, request: Request, data: dict) -> models.SearchQuery:
         """Override to enqueue search job AFTER the model is persisted (has an ID)."""
