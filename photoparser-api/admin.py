@@ -12,14 +12,28 @@ from rq import Queue
 r = redis.Redis(host='redis', port=6379)
 q = Queue(connection=r)
 
+DEFAULT_PAGES = 2  # Minimum/default pages for a new search query
 
-# SearchQueryStatus is no longer exposed in admin.
-# It is a fixed lookup table — statuses are managed via DB seed/alembic.
-# class SearchQueryStatusAdmin(ModelView, model=models.SearchQueryStatus):
-#     ...
+
+class SearchQueryStatusAdmin(ModelView, model=models.SearchQueryStatus):
+    # Read-only view — statuses are a fixed lookup table managed via DB seed/alembic.
+    can_create = False
+    can_edit = False
+    can_delete = False
+    column_list = [models.SearchQueryStatus.id, models.SearchQueryStatus.description]
+    column_labels = {
+        models.SearchQueryStatus.id: "ID",
+        models.SearchQueryStatus.description: "Description",
+    }
+    name = "Statuses"
+    name_plural = "Statuses"
 
 
 class SearchResultAdmin(ModelView, model=models.SearchResult):
+    # Read-only — results are produced by the worker, never edited manually.
+    can_create = False
+    can_edit = False
+    can_delete = False
     column_list = [models.SearchResult.id, models.SearchResult.thumb_src, models.SearchResult.search_query_id]
     column_labels = {
         models.SearchResult.id: "ID",
@@ -56,11 +70,10 @@ SAFE_SEARCH_OPTIONS = [
 
 
 class SearchQueryAdmin(ModelView, model=models.SearchQuery):
-    # Read-only: users can view queries but not edit or delete existing ones.
-    # Create is allowed so new searches can be submitted via admin.
-    can_edit = False
-    can_delete = False
+    # Create and delete allowed, edit forbidden (queries should not be modified after creation).
     can_create = True
+    can_edit = False
+    can_delete = True
 
     column_list = [
         models.SearchQuery.id,
@@ -105,8 +118,8 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
 
     async def insert_model(self, request: Request, data: dict) -> models.SearchQuery:
         """Override to enqueue search job AFTER the model is persisted (has an ID)."""
-        # Normalize pages: 0 or negative defaults to 1
-        data["pages"] = max(int(data.get("pages", 1)), 1)
+        # Normalize pages: 0 or negative defaults to DEFAULT_PAGES
+        data["pages"] = max(int(data.get("pages", DEFAULT_PAGES)), DEFAULT_PAGES)
 
         model = await super().insert_model(request, data)
 
@@ -129,7 +142,7 @@ class SearchQueryAdmin(ModelView, model=models.SearchQuery):
 
 def init_admin(app):
     admin = Admin(app, engine=engine, base_url="/admin")
-    # Statuses table is hidden — it's a fixed lookup (Pending/In Progress/Completed/Failed)
+    admin.add_view(SearchQueryStatusAdmin)
     admin.add_view(SearchResultAdmin)
     admin.add_view(SearchQueryAdmin)
     return admin
