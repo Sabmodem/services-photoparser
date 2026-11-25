@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 import uuid
 import typing
+from datetime import datetime
 
 SearchQueryStatusSheduled = 0
 SearchQueryStatusProcessing = 1
@@ -68,7 +69,7 @@ class DownloadTaskCreate(DownloadTaskBase):
 
 
 class DownloadTask(DownloadTaskBase):
-    created_at: typing.Optional[str] = None
+    created_at: typing.Optional[datetime] = None
     status: typing.Optional[SearchQueryStatus] = None
 
     class Config:

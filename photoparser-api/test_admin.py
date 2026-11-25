@@ -248,3 +248,99 @@ async def test_delete_search_query_cascades_to_results(search_query_with_results
     await test_engine.dispose()
 
     print(f"\n✓ Delete cascade verified: query and 5 results removed")
+
+
+@pytest.fixture
+async def test_search_query_for_download():
+    """Create a SearchQuery specifically for testing DownloadTask creation."""
+    test_engine = _make_test_engine()
+    async with test_engine.connect() as conn:
+        result = await conn.execute(
+            text("""INSERT INTO search_query (query_string, pages, status_id, time_range, language, safe_search)
+                    VALUES ('test-download-task', 3, 0, 'week', 'en', 1)
+                    ON CONFLICT DO NOTHING RETURNING id"""),
+        )
+        row = result.fetchone()
+        query_id = str(row.id) if row else None
+        await conn.commit()
+
+    yield {"id": query_id}
+
+    # Cleanup
+    async with test_engine.connect() as conn:
+        await conn.execute(text("DELETE FROM download_task WHERE search_query_id = :qid"), {"qid": query_id})
+        await conn.execute(text("DELETE FROM search_result WHERE search_query_id = :qid"), {"qid": query_id})
+        await conn.execute(text("DELETE FROM search_query WHERE query_string = 'test-download-task'"))
+        await conn.commit()
+    await test_engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_create_download_task_via_admin_form(test_search_query_for_download):
+    """
+    Hit the sqladmin create form for DownloadTask.
+
+    The form only has search_query_id as a field. It should:
+    1. Create a DownloadTask row in the DB
+    2. Enqueue the download RQ job (may fail due to Redis not being available)
+
+    If there's a form/validation error, we'll see a 400/redirect with errors.
+    """
+    query_id = test_search_query_for_download["id"]
+    print(f"\nTest using query_id: {query_id}")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # First GET the form page to see what fields are rendered
+        form_page = await client.get("/admin/download-task/create")
+        # Look for search_query_id in the form
+        if 'search_query_id' in form_page.text:
+            idx = form_page.text.find('search_query_id')
+            print(f"\nForm contains 'search_query_id' field at position {idx}")
+            print(f"Context: {form_page.text[max(0,idx-100):idx+200]}")
+        else:
+            print(f"\n✗ Form does NOT contain 'search_query_id' field!")
+            print(f"Full form HTML (first 5000 chars):\n{form_page.text[:5000]}")
+
+        response = await client.post(
+            "/admin/download-task/create",
+            data={
+                "search_query_id": query_id,
+            },
+            follow_redirects=False,
+        )
+
+        print(f"\n{'='*60}")
+        print(f"Status code: {response.status_code}")
+        if response.status_code in (301, 302, 303, 307, 308):
+            redirect = response.headers.get("location", "N/A")
+            print(f"Redirect to: {redirect}")
+            resp2 = await client.get(redirect, follow_redirects=True)
+            print(f"Final status: {resp2.status_code}")
+            print(f"Final body (first 3000 chars):\n{resp2.text[:3000]}")
+        else:
+            print(f"Body (first 3000 chars):\n{response.text[:3000]}")
+        print(f"{'='*60}")
+
+        # Check what ended up in the DB
+        test_engine = _make_test_engine()
+        async with test_engine.connect() as conn:
+            result = await conn.execute(
+                models.DownloadTask.__table__.select().where(
+                    models.DownloadTask.search_query_id == query_id
+                )
+            )
+            row = result.fetchone()
+            if row:
+                print(f"\n✓ Row inserted successfully!")
+                print(f"  search_query_id={row.search_query_id}")
+                print(f"  status_id={row.status_id}")
+                print(f"  total={row.total}")
+                print(f"  downloaded={row.downloaded}")
+            else:
+                print(f"\n✗ No row found — insert failed!")
+        await test_engine.dispose()
+
+        # Assert: create should succeed (200 or redirect)
+        assert response.status_code in (200, 301, 302, 303, 307, 308), \
+            f"Form submission returned {response.status_code} — see output above for the error"

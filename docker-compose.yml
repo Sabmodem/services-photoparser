@@ -102,7 +102,7 @@ services:
     volumes:
       - redis_data:/data
 
-  worker:
+  worker: # todo: independent workers for each kind of task(search, download). each worker is defined in an independent file and running as an independent service and has its own logs
     build:
       context: ./photoparser-api
       dockerfile: Dockerfile

@@ -313,6 +313,9 @@ class DownloadTaskAdmin(ModelView, model=models.DownloadTask):
     page_size_options = [20, 50, 100]
     name = "Download Task"
     name_plural = "Download Tasks"
+    # form_include_pk=True is needed because search_query_id is a ForeignKey column.
+    # sqladmin's _prepare_column skips all columns with foreign_keys when form_include_pk=False (the default).
+    form_include_pk = True
     form_columns = [models.DownloadTask.search_query_id]
 
     async def insert_model(self, request: Request, data: dict) -> models.DownloadTask:

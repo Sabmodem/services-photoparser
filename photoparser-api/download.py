@@ -36,7 +36,7 @@ async def _download_image(client: httpx.AsyncClient, img_src: str, dest_path: Pa
 
 async def main(search_query_id: str):
     """Download all images for a search query, zip them, and upload to storage."""
-    async with database.SessionLocal() as db:
+    async with database.SessionLocal.begin() as db:
         try:
             search_query = await crud.get_search_query(db, uuid.UUID(search_query_id))
 
